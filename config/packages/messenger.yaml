@@ -1,0 +1,26 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            failed:
+                dsn: 'doctrine://default?queue_name=failed'
+            sync: 'sync://'
+
+        routing:
+            App\Message\SendBoardInvitationEmail: async
+            App\Message\SendCardAssignedEmail: async
+            App\Message\SendCommentNotificationEmail: async
+            App\Message\SendDeadlineReminderEmail: async
+            App\Message\CheckDeadlinesMessage: async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'

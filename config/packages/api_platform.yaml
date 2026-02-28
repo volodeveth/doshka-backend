@@ -1,0 +1,27 @@
+api_platform:
+    title: 'Doshka Backend API'
+    description: 'Doshka — Kanban board REST API built with Symfony 7.2 and API Platform'
+    version: '1.0.0'
+    formats:
+        json:
+            mime_types: ['application/json']
+        jsonld:
+            mime_types: ['application/ld+json']
+        jsonapi:
+            mime_types: ['application/vnd.api+json']
+    docs_formats:
+        json:
+            mime_types: ['application/json']
+        jsonld:
+            mime_types: ['application/ld+json']
+        html:
+            mime_types: ['text/html']
+    defaults:
+        stateless: true
+        cache_headers:
+            vary: ['Content-Type', 'Authorization', 'Origin']
+        extra_properties:
+            standard_put: true
+            rfc_7807_compliant_errors: true
+    event_listeners_backward_compatibility_layer: false
+    keep_legacy_inflector: false
