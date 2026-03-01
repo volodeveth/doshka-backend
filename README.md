@@ -290,6 +290,8 @@ src/
 │   └── CommentVoter.php # Comment edit/delete authorization
 ├── Service/
 │   └── ActivityLogger.php  # Explicit activity logging service
+├── OpenApi/
+│   └── CustomOpenApiFactory.php  # Decorator merging swagger-php annotations into AP3 spec
 ├── Message/             # Messenger message DTOs (5 message types)
 ├── MessageHandler/      # Email sending handlers
 └── Scheduler/
