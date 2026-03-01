@@ -28,6 +28,7 @@
         "symfony/http-client": "7.2.*",
         "symfony/mailer": "7.2.*",
         "symfony/messenger": "7.2.*",
+        "symfony/monolog-bundle": "^3.10",
         "symfony/password-hasher": "7.2.*",
         "symfony/property-access": "7.2.*",
         "symfony/property-info": "7.2.*",
@@ -36,13 +37,13 @@
         "symfony/scheduler": "7.2.*",
         "symfony/security-bundle": "7.2.*",
         "symfony/serializer": "7.2.*",
-        "symfony/monolog-bundle": "^3.10",
         "symfony/twig-bundle": "7.2.*",
         "symfony/uid": "7.2.*",
         "symfony/validator": "7.2.*",
         "symfony/yaml": "7.2.*",
         "twig/extra-bundle": "^2.12|^3.0",
-        "twig/twig": "^2.12|^3.0"
+        "twig/twig": "^2.12|^3.0",
+        "zircote/swagger-php": "*"
     },
     "require-dev": {
         "doctrine/doctrine-fixtures-bundle": "^3.6",

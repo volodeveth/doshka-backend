@@ -14,6 +14,7 @@ use App\Repository\UserRepository;
 use App\Security\BoardVoter;
 use App\Service\ActivityLogger;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +24,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api')]
+#[OA\Tag(name: 'Cards')]
 class CardController extends AbstractController
 {
     public function __construct(
@@ -34,6 +36,39 @@ class CardController extends AbstractController
     // ─────────────────────────────── Cards ─────────────────────────────────
 
     #[Route('/lists/{id}/cards', name: 'cards_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/lists/{id}/cards',
+        operationId: 'getCards',
+        summary: 'Get all cards in a list',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'List ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'List of cards',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'title', type: 'string'),
+                            new OA\Property(property: 'position', type: 'integer'),
+                            new OA\Property(property: 'dueDate', type: 'string', format: 'date-time', nullable: true),
+                            new OA\Property(property: 'listId', type: 'integer'),
+                            new OA\Property(property: 'labels', type: 'array', items: new OA\Items(type: 'object')),
+                            new OA\Property(property: 'assignees', type: 'array', items: new OA\Items(type: 'object')),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'List not found'),
+        ]
+    )]
     public function index(BoardList $list): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $list->getBoard());
@@ -44,6 +79,34 @@ class CardController extends AbstractController
     }
 
     #[Route('/lists/{id}/cards', name: 'cards_create', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/lists/{id}/cards',
+        operationId: 'createCard',
+        summary: 'Create a new card in a list',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'List ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Implement feature X'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                    new OA\Property(property: 'dueDate', type: 'string', format: 'date-time', nullable: true, example: '2026-03-15T18:00:00+00:00'),
+                    new OA\Property(property: 'position', type: 'integer', nullable: true, description: 'Auto-assigned if omitted'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Card created'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function create(BoardList $list, Request $request, CardRepository $cardRepo): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $list->getBoard());
@@ -83,6 +146,38 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}', name: 'cards_show', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/cards/{id}',
+        operationId: 'getCard',
+        summary: 'Get card details with description and comments',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Card details',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'id', type: 'integer'),
+                        new OA\Property(property: 'title', type: 'string'),
+                        new OA\Property(property: 'description', type: 'string', nullable: true),
+                        new OA\Property(property: 'position', type: 'integer'),
+                        new OA\Property(property: 'dueDate', type: 'string', format: 'date-time', nullable: true),
+                        new OA\Property(property: 'listId', type: 'integer'),
+                        new OA\Property(property: 'labels', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'assignees', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'comments', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Card not found'),
+        ]
+    )]
     public function show(Card $card): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $card->getList()->getBoard());
@@ -91,6 +186,34 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}', name: 'cards_update', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/cards/{id}',
+        operationId: 'updateCard',
+        summary: 'Update card title, description, due date or move to another list',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Updated title'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                    new OA\Property(property: 'dueDate', type: 'string', format: 'date-time', nullable: true),
+                    new OA\Property(property: 'listId', type: 'integer', nullable: true, description: 'Move card to another list'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Card updated'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Card not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function update(Card $card, Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $card->getList()->getBoard());
@@ -134,6 +257,22 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}', name: 'cards_delete', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/cards/{id}',
+        operationId: 'deleteCard',
+        summary: 'Delete a card',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Card deleted'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Card not found'),
+        ]
+    )]
     public function delete(Card $card): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $card->getList()->getBoard());
@@ -145,6 +284,31 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}/reorder', name: 'cards_reorder', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/cards/{id}/reorder',
+        operationId: 'reorderCard',
+        summary: 'Change the position of a card within its list',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['position'],
+                properties: [
+                    new OA\Property(property: 'position', type: 'integer', example: 1, description: 'New zero-based position'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Card reordered'),
+            new OA\Response(response: 400, description: 'Invalid position'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function reorder(Card $card, Request $request, CardRepository $cardRepo): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $card->getList()->getBoard());
@@ -184,6 +348,32 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}/move', name: 'cards_move', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/cards/{id}/move',
+        operationId: 'moveCard',
+        summary: 'Move a card to a different list',
+        security: [['JWT' => []]],
+        tags: ['Cards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['listId'],
+                properties: [
+                    new OA\Property(property: 'listId', type: 'integer', example: 5, description: 'Target list ID (must be on the same board)'),
+                    new OA\Property(property: 'position', type: 'integer', nullable: true, description: 'Position in target list, appended at end if omitted'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Card moved'),
+            new OA\Response(response: 400, description: 'Invalid target list'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function move(Card $card, Request $request, CardRepository $cardRepo): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $card->getList()->getBoard());
@@ -221,6 +411,41 @@ class CardController extends AbstractController
     // ─────────────────────────── Card Members ────────────────────────────────
 
     #[Route('/cards/{id}/members', name: 'cards_members_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/cards/{id}/members',
+        operationId: 'getCardMembers',
+        summary: 'List users assigned to a card',
+        security: [['JWT' => []]],
+        tags: ['Card Members'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'List of assignees',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer'),
+                                    new OA\Property(property: 'username', type: 'string'),
+                                    new OA\Property(property: 'avatarUrl', type: 'string', nullable: true),
+                                ]
+                            ),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function cardMembers(Card $card): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $card->getList()->getBoard());
@@ -238,6 +463,32 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{id}/members', name: 'cards_members_add', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/cards/{id}/members',
+        operationId: 'addCardMember',
+        summary: 'Assign a board member to a card',
+        security: [['JWT' => []]],
+        tags: ['Card Members'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['userId'],
+                properties: [
+                    new OA\Property(property: 'userId', type: 'integer', example: 3, description: 'Must be a board member'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'User assigned to card'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden or user is not a board member'),
+            new OA\Response(response: 404, description: 'User or card not found'),
+            new OA\Response(response: 409, description: 'User already assigned'),
+        ]
+    )]
     public function addCardMember(
         Card $card,
         Request $request,
@@ -292,6 +543,23 @@ class CardController extends AbstractController
     }
 
     #[Route('/cards/{cardId}/members/{userId}', name: 'cards_members_remove', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/cards/{cardId}/members/{userId}',
+        operationId: 'removeCardMember',
+        summary: 'Unassign a user from a card',
+        security: [['JWT' => []]],
+        tags: ['Card Members'],
+        parameters: [
+            new OA\Parameter(name: 'cardId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Assignment removed'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Card, user or assignment not found'),
+        ]
+    )]
     public function removeCardMember(
         int $cardId,
         int $userId,

@@ -12,6 +12,7 @@ use App\Repository\UserRepository;
 use App\Security\BoardVoter;
 use App\Service\ActivityLogger;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,6 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api')]
+#[OA\Tag(name: 'Boards')]
 class BoardController extends AbstractController
 {
     public function __construct(
@@ -33,6 +35,33 @@ class BoardController extends AbstractController
     // ─────────────────────────────── Boards ────────────────────────────────
 
     #[Route('/boards', name: 'boards_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/boards',
+        operationId: 'getBoards',
+        summary: 'List all boards I belong to',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'List of boards',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                            new OA\Property(property: 'title', type: 'string', example: 'My Project'),
+                            new OA\Property(property: 'description', type: 'string', nullable: true),
+                            new OA\Property(property: 'color', type: 'string', example: '#0079BF'),
+                            new OA\Property(property: 'memberCount', type: 'integer', example: 3),
+                            new OA\Property(property: 'createdAt', type: 'string', format: 'date-time'),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function index(BoardRepository $boardRepository): JsonResponse
     {
         /** @var User $user */
@@ -46,6 +75,29 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards', name: 'boards_create', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/boards',
+        operationId: 'createBoard',
+        summary: 'Create a new board',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'My Project'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Project description'),
+                    new OA\Property(property: 'color', type: 'string', nullable: true, example: '#0079BF'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Board created'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function create(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -86,6 +138,36 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{id}', name: 'boards_show', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/boards/{id}',
+        operationId: 'getBoard',
+        summary: 'Get board details with lists, cards and labels',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Board details',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'id', type: 'integer'),
+                        new OA\Property(property: 'title', type: 'string'),
+                        new OA\Property(property: 'description', type: 'string', nullable: true),
+                        new OA\Property(property: 'color', type: 'string', nullable: true),
+                        new OA\Property(property: 'members', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'lists', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'labels', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Board not found'),
+        ]
+    )]
     public function show(Board $board): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $board);
@@ -94,6 +176,33 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{id}', name: 'boards_update', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/boards/{id}',
+        operationId: 'updateBoard',
+        summary: 'Update board title, description or color',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Updated Title'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                    new OA\Property(property: 'color', type: 'string', nullable: true, example: '#FF5722'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Board updated'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden — requires admin or owner role'),
+            new OA\Response(response: 404, description: 'Board not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function update(Board $board, Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::MANAGE, $board);
@@ -118,6 +227,22 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{id}', name: 'boards_delete', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/boards/{id}',
+        operationId: 'deleteBoard',
+        summary: 'Delete a board (owner only)',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Board deleted'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden — owner only'),
+            new OA\Response(response: 404, description: 'Board not found'),
+        ]
+    )]
     public function delete(Board $board): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::DELETE, $board);
@@ -129,6 +254,39 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{id}/activity', name: 'boards_activity', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/boards/{id}/activity',
+        operationId: 'getBoardActivity',
+        summary: 'Get paginated activity log for a board',
+        security: [['JWT' => []]],
+        tags: ['Boards'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'limit', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 50)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Activity log',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'action', type: 'string', example: 'card.created'),
+                            new OA\Property(property: 'payload', type: 'object'),
+                            new OA\Property(property: 'user', type: 'object'),
+                            new OA\Property(property: 'card', type: 'object', nullable: true),
+                            new OA\Property(property: 'createdAt', type: 'string', format: 'date-time'),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function activity(Board $board, Request $request, ActivityRepository $activityRepository): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $board);
@@ -151,6 +309,43 @@ class BoardController extends AbstractController
     // ─────────────────────────── Board Members ──────────────────────────────
 
     #[Route('/boards/{id}/members', name: 'boards_members_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/boards/{id}/members',
+        operationId: 'getBoardMembers',
+        summary: 'List all board members',
+        security: [['JWT' => []]],
+        tags: ['Board Members'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'List of members',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'role', type: 'string', enum: ['owner', 'admin', 'member']),
+                            new OA\Property(
+                                property: 'user',
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer'),
+                                    new OA\Property(property: 'username', type: 'string'),
+                                    new OA\Property(property: 'email', type: 'string'),
+                                    new OA\Property(property: 'avatarUrl', type: 'string', nullable: true),
+                                ]
+                            ),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function members(Board $board, BoardMemberRepository $memberRepo): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $board);
@@ -170,6 +365,33 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{id}/members', name: 'boards_members_add', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/boards/{id}/members',
+        operationId: 'addBoardMember',
+        summary: 'Invite a user to the board by email',
+        security: [['JWT' => []]],
+        tags: ['Board Members'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane@example.com'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'member'], example: 'member'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Member added'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden — requires admin or owner role'),
+            new OA\Response(response: 404, description: 'User not found'),
+            new OA\Response(response: 409, description: 'User is already a member'),
+        ]
+    )]
     public function addMember(
         Board $board,
         Request $request,
@@ -226,6 +448,32 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{boardId}/members/{userId}', name: 'boards_members_update', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/boards/{boardId}/members/{userId}',
+        operationId: 'updateBoardMember',
+        summary: 'Change member role (owner only)',
+        security: [['JWT' => []]],
+        tags: ['Board Members'],
+        parameters: [
+            new OA\Parameter(name: 'boardId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['role'],
+                properties: [
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'member'], example: 'admin'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Role updated'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden — owner only'),
+            new OA\Response(response: 404, description: 'Board or member not found'),
+        ]
+    )]
     public function updateMember(
         int $boardId,
         int $userId,
@@ -262,6 +510,23 @@ class BoardController extends AbstractController
     }
 
     #[Route('/boards/{boardId}/members/{userId}', name: 'boards_members_remove', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/boards/{boardId}/members/{userId}',
+        operationId: 'removeBoardMember',
+        summary: 'Remove a member from the board',
+        security: [['JWT' => []]],
+        tags: ['Board Members'],
+        parameters: [
+            new OA\Parameter(name: 'boardId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Member removed'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Board or member not found'),
+        ]
+    )]
     public function removeMember(
         int $boardId,
         int $userId,

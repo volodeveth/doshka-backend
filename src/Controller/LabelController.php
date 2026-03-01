@@ -11,6 +11,7 @@ use App\Repository\CardLabelRepository;
 use App\Security\BoardVoter;
 use App\Service\ActivityLogger;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,6 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api')]
+#[OA\Tag(name: 'Labels')]
 class LabelController extends AbstractController
 {
     public function __construct(
@@ -28,6 +30,35 @@ class LabelController extends AbstractController
     ) {}
 
     #[Route('/boards/{id}/labels', name: 'labels_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/boards/{id}/labels',
+        operationId: 'getLabels',
+        summary: 'List all labels for a board',
+        security: [['JWT' => []]],
+        tags: ['Labels'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Board ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'List of labels',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer'),
+                            new OA\Property(property: 'name', type: 'string', example: 'Bug'),
+                            new OA\Property(property: 'color', type: 'string', example: '#EB5A46'),
+                            new OA\Property(property: 'boardId', type: 'integer'),
+                        ]
+                    )
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+        ]
+    )]
     public function index(Board $board): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::VIEW, $board);
@@ -38,6 +69,32 @@ class LabelController extends AbstractController
     }
 
     #[Route('/boards/{id}/labels', name: 'labels_create', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/boards/{id}/labels',
+        operationId: 'createLabel',
+        summary: 'Create a new label for a board',
+        security: [['JWT' => []]],
+        tags: ['Labels'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Board ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'color'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Bug'),
+                    new OA\Property(property: 'color', type: 'string', example: '#EB5A46'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Label created'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden — requires admin or owner role'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function create(Board $board, Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::MANAGE, $board);
@@ -64,6 +121,32 @@ class LabelController extends AbstractController
     }
 
     #[Route('/labels/{id}', name: 'labels_update', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/labels/{id}',
+        operationId: 'updateLabel',
+        summary: 'Update label name or color',
+        security: [['JWT' => []]],
+        tags: ['Labels'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Label ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Feature'),
+                    new OA\Property(property: 'color', type: 'string', example: '#61BD4F'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Label updated'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Label not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function update(Label $label, Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::MANAGE, $label->getBoard());
@@ -87,6 +170,22 @@ class LabelController extends AbstractController
     }
 
     #[Route('/labels/{id}', name: 'labels_delete', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/labels/{id}',
+        operationId: 'deleteLabel',
+        summary: 'Delete a label',
+        security: [['JWT' => []]],
+        tags: ['Labels'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Label ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Label deleted'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Label not found'),
+        ]
+    )]
     public function delete(Label $label): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::MANAGE, $label->getBoard());
@@ -98,6 +197,32 @@ class LabelController extends AbstractController
     }
 
     #[Route('/cards/{id}/labels', name: 'card_labels_attach', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/cards/{id}/labels',
+        operationId: 'attachLabel',
+        summary: 'Attach a label to a card',
+        security: [['JWT' => []]],
+        tags: ['Card Labels'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Card ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['labelId'],
+                properties: [
+                    new OA\Property(property: 'labelId', type: 'integer', example: 2, description: 'Must belong to the same board'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Label attached'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Label not found or belongs to different board'),
+            new OA\Response(response: 409, description: 'Label already attached'),
+        ]
+    )]
     public function attachLabel(Card $card, Request $request, CardLabelRepository $cardLabelRepo): JsonResponse
     {
         $this->denyAccessUnlessGranted(BoardVoter::EDIT, $card->getList()->getBoard());
@@ -139,6 +264,23 @@ class LabelController extends AbstractController
     }
 
     #[Route('/cards/{cardId}/labels/{labelId}', name: 'card_labels_detach', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/cards/{cardId}/labels/{labelId}',
+        operationId: 'detachLabel',
+        summary: 'Detach a label from a card',
+        security: [['JWT' => []]],
+        tags: ['Card Labels'],
+        parameters: [
+            new OA\Parameter(name: 'cardId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'labelId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Label detached'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Card, label or attachment not found'),
+        ]
+    )]
     public function detachLabel(int $cardId, int $labelId, CardLabelRepository $cardLabelRepo): JsonResponse
     {
         $card = $this->em->find(Card::class, $cardId);

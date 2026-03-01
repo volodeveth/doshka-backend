@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +17,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/auth')]
+#[OA\Tag(name: 'Authentication')]
 class AuthController extends AbstractController
 {
     public function __construct(
@@ -26,7 +28,83 @@ class AuthController extends AbstractController
         private readonly SerializerInterface $serializer,
     ) {}
 
+    #[Route('/login', name: 'auth_login', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/auth/login',
+        operationId: 'login',
+        summary: 'Login user (returns JWT token)',
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email', 'password'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'john@example.com'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'secret123'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Successful login',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'token', type: 'string', example: 'eyJhbGci...'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Invalid credentials'),
+        ]
+    )]
+    public function login(): never
+    {
+        // Intercepted by json_login security handler — never reaches here
+        throw new \LogicException('This method should not be reached.');
+    }
+
     #[Route('/register', name: 'auth_register', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/auth/register',
+        operationId: 'register',
+        summary: 'Register a new user',
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email', 'username', 'password'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'john@example.com'),
+                    new OA\Property(property: 'username', type: 'string', example: 'john'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'secret123'),
+                    new OA\Property(property: 'avatarUrl', type: 'string', nullable: true, example: null),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'User registered successfully',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'token', type: 'string', example: 'eyJhbGci...'),
+                        new OA\Property(
+                            property: 'user',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'email', type: 'string', example: 'john@example.com'),
+                                new OA\Property(property: 'username', type: 'string', example: 'john'),
+                                new OA\Property(property: 'avatarUrl', type: 'string', nullable: true),
+                                new OA\Property(property: 'createdAt', type: 'string', format: 'date-time'),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function register(Request $request, UserRepository $userRepository): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -71,6 +149,35 @@ class AuthController extends AbstractController
     }
 
     #[Route('/me', name: 'auth_me', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/auth/me',
+        operationId: 'getMe',
+        summary: 'Get current user profile',
+        security: [['JWT' => []]],
+        tags: ['Authentication'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Current user profile',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: 'user',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'email', type: 'string', example: 'john@example.com'),
+                                new OA\Property(property: 'username', type: 'string', example: 'john'),
+                                new OA\Property(property: 'avatarUrl', type: 'string', nullable: true),
+                                new OA\Property(property: 'createdAt', type: 'string', format: 'date-time'),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     public function me(): JsonResponse
     {
         /** @var User $user */
@@ -82,6 +189,28 @@ class AuthController extends AbstractController
     }
 
     #[Route('/me', name: 'auth_me_update', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/auth/me',
+        operationId: 'updateMe',
+        summary: 'Update current user profile',
+        security: [['JWT' => []]],
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'username', type: 'string', example: 'new_username'),
+                    new OA\Property(property: 'avatarUrl', type: 'string', nullable: true),
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated user profile'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function updateMe(Request $request): JsonResponse
     {
         /** @var User $user */
